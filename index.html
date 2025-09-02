@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>JiaoBei</title>
+  <link rel="stylesheet" href="./style.css">
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#eab308">
+  <meta name="description" content="Traditional Chinese Jiaobei Moon Blocks divination app for spiritual guidance">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Jiaobei">
+  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiSmlhb2JlaSBNb29uIEJsb2NrcyAtIERpdmluZSBHdWlkYW5jZSIsInNob3J0X25hbWUiOiJKaWFvYmVpIiwiZGVzY3JpcHRpb24iOiJUcmFkaXRpb25hbCBDaGluZXNlIGRpdmluYXRpb24gYmxvY2tzIGZvciBzcGlyaXR1YWwgZ3VpZGFuY2UiLCJzdGFydF91cmwiOiIvIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzdmMWQxZCIsInRoZW1lX2NvbG9yIjoiI2VhYjMwOCIsIm9yaWVudGF0aW9uIjoicG9ydHJhaXQtcHJpbWFyeSIsImNhdGVnb3JpZXMiOlsibGlmZXN0eWxlIiwiZW50ZXJ0YWlubWVudCIsInNwaXJpdHVhbGl0eSJdLCJsYW5nIjoiZW4ifQ==">
+  <title>Jiaobei Moon Blocks - Divine Guidance</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes toss {
+      0% {
+        transform: rotate(0deg) translateY(0px) translateX(0px);
+      }
+
+      25% {
+        transform: rotate(180deg) translateY(-20px) translateX(10px);
+      }
+
+      50% {
+        transform: rotate(360deg) translateY(-10px) translateX(-5px);
+      }
+
+      75% {
+        transform: rotate(540deg) translateY(-30px) translateX(15px);
+      }
+
+      100% {
+        transform: rotate(720deg) translateY(0px) translateX(0px);
+      }
+    }
+
+    .tossing {
+      animation: toss 1.5s ease-out;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    .slide-down {
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-50px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .glass {
+      backdrop-filter: blur(10px);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen">
+  <div id="app"></div>
+
+  <script>
+    class JiaobeiApp {
+      constructor() {
+        this.question = '';
+        this.result = null;
+        this.isTossing = false;
+        this.history = JSON.parse(localStorage.getItem('jiaobei-history') || '[]');
+        this.showHistory = false;
+        this.showStats = false;
+        this.soundEnabled = JSON.parse(localStorage.getItem('jiaobei-sound') || 'true');
+        this.theme = localStorage.getItem('jiaobei-theme') || 'classic';
+        this.showThemes = false;
+        this.showLuckyNumbers = false;
+        this.luckyNumbers = this.generateLuckyNumbers();
+        this.lucky4Digit = this.generate4DigitNumber();
+        this.outcomes = [{
+            name: "聖筊 (Shèngjiǎo)",
+            meaning: "✅ Yes",
+            emoji: "🙏",
+            color: "text-green-400"
+          },
+          {
+            name: "笑筊 (Xiàojiǎo)",
+            meaning: "😂 Laugh — ask again.",
+            emoji: "😂",
+            color: "text-yellow-400"
+          },
+          {
+            name: "陰筊 (Yīn jiǎo)",
+            meaning: "❌ No",
+            emoji: "🙅",
+            color: "text-red-400"
+          }
+        ];
+        this.init();
+      }
+      init() {
+        this.stats = this.loadStats();
+        this.render();
+        // PWA install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          this.deferredPrompt = e;
+          this.showInstallPrompt = true;
+          this.render();
+        });
+      }
+      getThemeStyles() {
+        const themes = {
+          classic: "bg-gradient-to-br from-red-900 to-yellow-700",
+          dark: "bg-gradient-to-br from-gray-900 to-black",
+          light: "bg-gradient-to-br from-blue-100 to-purple-100",
+          temple: "bg-gradient-to-br from-amber-900 to-orange-800",
+          mystical: "bg-gradient-to-br from-purple-900 to-indigo-900",
+          nature: "bg-gradient-to-br from-green-800 to-emerald-700"
+        };
+        return themes[this.theme] || themes.classic;
+      }
+      generateLuckyNumbers() {
+        // Generate 6 random lottery-style numbers (1-49)
+        const numbers = [];
+        while (numbers.length < 6) {
+          const num = Math.floor(Math.random() * 49) + 1;
+          if (!numbers.includes(num)) {
+            numbers.push(num);
+          }
+        }
+        return numbers.sort((a, b) => a - b);
+      }
+      generate4DigitNumber() {
+        // Generate a random 4-digit lucky number (0000-9999)
+        return Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      }
+      initDrawingCanvas() {
+        if (this.drawingCanvas) return;
+        this.drawingCanvas = document.createElement('canvas');
+        this.drawingCanvas.width = 300;
+        this.drawingCanvas.height = 200;
+        this.drawingCanvas.style.border = '2px solid #eab308';
+        this.drawingCanvas.style.borderRadius = '8px';
+        this.drawingCanvas.style.backgroundColor = 'rgba(0,0,0,0.3)';
+        this.drawingCanvas.style.cursor = 'crosshair';
+        this.drawingCtx = this.drawingCanvas.getContext('2d');
+        this.drawingCtx.strokeStyle = '#eab308';
+        this.drawingCtx.lineWidth = 2;
+        this.drawingCtx.lineCap = 'round';
+        let isDrawing = false;
+        this.drawingCanvas.addEventListener('mousedown', (e) => {
+          isDrawing = true;
+          const rect = this.drawingCanvas.getBoundingClientRect();
+          this.drawingCtx.beginPath();
+          this.drawingCtx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        });
+        this.drawingCanvas.addEventListener('mousemove', (e) => {
+          if (!isDrawing) return;
+          const rect = this.drawingCanvas.getBoundingClientRect();
+          this.drawingCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+          this.drawingCtx.stroke();
+        });
+        this.drawingCanvas.addEventListener('mouseup', () => {
+          isDrawing = false;
+        });
+        // Touch events for mobile
+        this.drawingCanvas.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          isDrawing = true;
+          const rect = this.drawingCanvas.getBoundingClientRect();
+          const touch = e.touches[0];
+          this.drawingCtx.beginPath();
+          this.drawingCtx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+        });
+        this.drawingCanvas.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          if (!isDrawing) return;
+          const rect = this.drawingCanvas.getBoundingClientRect();
+          const touch = e.touches[0];
+          this.drawingCtx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+          this.drawingCtx.stroke();
+        });
+        this.drawingCanvas.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          isDrawing = false;
+        });
+      }
+      clearDrawing() {
+        const canvas = document.getElementById('drawing-canvas');
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      shareResult(result) {
+        const text = `🎲 Jiaobei Divination Result: ${result.name}\n${result.meaning}\n\nTry it yourself: ${window.location.href}`;
+        if (navigator.share) {
+          navigator.share({
+            title: 'Jiaobei Divination Result',
+            text: text
+          });
+        } else {
+          navigator.clipboard.writeText(text).then(() => {
+            alert('Result copied to clipboard!');
+          });
+        }
+      }
+      loadStats() {
+        const saved = localStorage.getItem('jiaobei-stats');
+        if (saved) return JSON.parse(saved);
+        return {
+          todayStats: {
+            date: new Date().toDateString(),
+            totalTosses: 0,
+            results: {}
+          },
+          weeklyStats: [],
+          totalTosses: 0
+        };
+      }
+      saveStats() {
+        localStorage.setItem('jiaobei-stats', JSON.stringify(this.stats));
+      }
+      addResult(resultName) {
+        const today = new Date().toDateString();
+        if (this.stats.todayStats.date !== today) {
+          this.stats.todayStats = {
+            date: today,
+            totalTosses: 1,
+            results: {
+              [resultName]: 1
+            }
+          };
+        } else {
+          this.stats.todayStats.totalTosses += 1;
+          this.stats.todayStats.results[resultName] = (this.stats.todayStats.results[resultName] || 0) + 1;
+        }
+        const existingDayIndex = this.stats.weeklyStats.findIndex(day => day.date === today);
+        if (existingDayIndex >= 0) {
+          this.stats.weeklyStats[existingDayIndex] = this.stats.todayStats;
+        } else {
+          this.stats.weeklyStats.push(this.stats.todayStats);
+          if (this.stats.weeklyStats.length > 7) {
+            this.stats.weeklyStats = this.stats.weeklyStats.slice(-7);
+          }
+        }
+        this.stats.totalTosses += 1;
+        this.saveStats();
+      }
+      playTossSound() {
+        if (!this.soundEnabled) return;
+        const audioContext = new(window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+      }
+      playResultSound(resultName) {
+        if (!this.soundEnabled) return;
+        try {
+          const audioContext = new(window.AudioContext || window.webkitAudioContext)();
+          // Different sounds for different results
+          if (resultName.includes('聖筊')) {
+            // Yes - ascending chime sequence
+            this.playTone(audioContext, 523, 0.4, 0.2); // C5
+            setTimeout(() => this.playTone(audioContext, 659, 0.4, 0.2), 200); // E5
+            setTimeout(() => this.playTone(audioContext, 784, 0.4, 0.2), 400); // G5
+          } else if (resultName.includes('笑筊')) {
+            // Laugh - playful bouncing sound
+            this.playTone(audioContext, 440, 0.3, 0.1); // A4
+            setTimeout(() => this.playTone(audioContext, 554, 0.3, 0.1), 100); // C#5
+            setTimeout(() => this.playTone(audioContext, 440, 0.3, 0.1), 200); // A4
+            setTimeout(() => this.playTone(audioContext, 554, 0.3, 0.1), 300); // C#5
+          } else if (resultName.includes('陰筊')) {
+            // No - descending tone
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.frequency.setValueAtTime(392, audioContext.currentTime); // G4
+            oscillator.frequency.exponentialRampToValueAtTime(196, audioContext.currentTime + 0.5); // G3
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+          }
+        } catch (error) {
+          console.log('Audio not supported');
+        }
+      }
+      playTone(audioContext, frequency, volume, duration) {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration);
+      }
+      generateNewLuckyNumbers() {
+        this.luckyNumbers = this.generateLuckyNumbers();
+        this.lucky4Digit = this.generate4DigitNumber();
+      }
+      triggerHapticFeedback() {
+        if ('vibrate' in navigator) {
+          navigator.vibrate([50, 30, 50]);
+        }
+      }
+      tossJiaobei() {
+        this.isTossing = true;
+        this.result = null;
+        this.render();
+        this.playTossSound();
+        this.triggerHapticFeedback();
+        setTimeout(() => {
+          const outcome = this.outcomes[Math.floor(Math.random() * this.outcomes.length)];
+          this.result = outcome;
+          this.history.unshift({
+            ...outcome,
+            question: this.question,
+            timestamp: new Date()
+          });
+          if (this.history.length > 5) this.history.pop();
+          this.addResult(outcome.name);
+          this.isTossing = false;
+          this.render();
+          if (this.soundEnabled) {
+            setTimeout(() => this.playResultSound(outcome.name), 200);
+          }
+        }, 1500);
+      }
+      clearHistory() {
+        this.history = [];
+        this.render();
+      }
+      clearStats() {
+        this.stats = {
+          todayStats: {
+            date: new Date().toDateString(),
+            totalTosses: 0,
+            results: {}
+          },
+          weeklyStats: [],
+          totalTosses: 0
+        };
+        localStorage.removeItem('jiaobei-stats');
+        this.render();
+      }
+      getResultEmoji(resultName) {
+        if (resultName.includes('聖筊')) return '🙏';
+        if (resultName.includes('笑筊')) return '🙅';
+        if (resultName.includes('陰筊')) return '😂';
+        return '🎲';
+      }
+      render() {
+        const backgroundClass = this.getThemeStyles();
+        document.getElementById('app').innerHTML = `
+                    <div class="min-h-screen flex flex-col items-center justify-center ${backgroundClass} p-4 relative transition-all duration-500">
+                        ${this.showInstallPrompt ? `
+                            <div class="slide-down fixed top-4 left-4 right-4 z-50 bg-yellow-500 text-black p-3 rounded-lg shadow-lg flex items-center justify-between">
+                                <span class="text-sm font-medium">Install Jiaobei App for better experience</span>
+                                <div class="flex gap-2">
+                                    <button onclick="app.handleInstallClick()" class="bg-black text-yellow-500 hover:bg-gray-800 text-xs px-3 py-1 rounded">Install</button>
+                                    <button onclick="app.showInstallPrompt = false; app.render()" class="bg-transparent text-black hover:bg-black/10 text-xs px-3 py-1 rounded">✕</button>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Top Controls -->
+                        <div class="fixed top-4 right-4 flex gap-2 z-40">
+                            <button onclick="app.showThemes = !app.showThemes; app.render()" class="bg-black/40 hover:bg-black/60 text-yellow-200 p-2 rounded-full transition-colors">
+                                🎨
+                            </button>
+                            <button onclick="app.soundEnabled = !app.soundEnabled; localStorage.setItem('jiaobei-sound', JSON.stringify(app.soundEnabled)); app.render()" class="bg-black/40 hover:bg-black/60 text-yellow-200 p-2 rounded-full transition-colors">
+                                ${this.soundEnabled ? '🔊' : '🔇'}
+                            </button>
+                            <button onclick="app.showLuckyNumbers = !app.showLuckyNumbers; app.render()" class="bg-black/40 hover:bg-black/60 text-yellow-200 p-2 rounded-full transition-colors">
+                                🍀
+                            </button>
+                            <button onclick="app.showStats = !app.showStats; app.render()" class="bg-black/40 hover:bg-black/60 text-yellow-200 p-2 rounded-full transition-colors">
+                                📊
+                            </button>
+                        </div>
+                        <div class="w-full max-w-md shadow-2xl rounded-2xl border-2 border-yellow-500 glass bg-black/20 p-6">
+                            <div class="text-center mb-6">
+                                <h1 class="text-2xl font-bold text-yellow-200 mb-2">Jiaobei (Moon Blocks)</h1>
+                                <p class="text-yellow-100 text-sm">Ask your question, then toss the blocks for divine guidance.</p>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <label class="block text-yellow-200 text-sm font-medium mb-2">Your Question (Optional)</label>
+                                <input type="text" value="${this.question}" onchange="app.question = this.value" placeholder="What guidance do you seek?" maxlength="100" class="w-full px-3 py-2 bg-black/40 border border-yellow-500/30 rounded-lg text-yellow-100 placeholder-yellow-300/60 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500">
+                            </div>
+                            
+                            <div class="relative h-24 w-32 flex items-center justify-center mx-auto mb-6">
+                                <div class="absolute ${this.isTossing ? 'tossing' : ''}">
+                                    <div class="flex gap-2">
+                                        <div class="w-8 h-12 rounded-full transform rotate-12 shadow-lg border-2 transition-colors duration-500 ${
+                                            this.result?.name === "聖筊 (Shèngjiǎo)" ? "bg-gradient-to-b from-red-500 to-red-700 border-red-800" :
+                                            this.result?.name === "笑筊 (Xiàojiǎo)" ? "bg-gradient-to-b from-yellow-400 to-yellow-600 border-yellow-700" :
+                                            this.result?.name === "陰筊 (Yīn jiǎo)" ? "bg-gradient-to-b from-red-500 to-red-700 border-red-800" :
+                                            "bg-gradient-to-b from-yellow-400 to-yellow-600 border-yellow-700"
+                                        }"></div>
+                                        <div class="w-8 h-12 rounded-full transform -rotate-12 shadow-lg border-2 transition-colors duration-500 ${
+                                            this.result?.name === "聖筊 (Shèngjiǎo)" ? "bg-gradient-to-b from-yellow-400 to-yellow-600 border-yellow-700" :
+                                            this.result?.name === "笑筊 (Xiàojiǎo)" ? "bg-gradient-to-b from-yellow-400 to-yellow-600 border-yellow-700" :
+                                            this.result?.name === "陰筊 (Yīn jiǎo)" ? "bg-gradient-to-b from-red-500 to-red-700 border-red-800" :
+                                            "bg-gradient-to-b from-yellow-400 to-yellow-600 border-yellow-700"
+                                        }"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button onclick="app.tossJiaobei()" ${this.isTossing ? 'disabled' : ''} class="w-full bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-black font-semibold px-8 py-4 rounded-xl text-lg shadow-lg transform transition-transform active:scale-95 mb-6">
+                                ${this.isTossing ? "Tossing..." : "🎲 Toss Jiaobei"}
+                            </button>
+                            
+                            ${this.result ? `
+                                <div class="text-center mt-6 p-4 bg-black/40 rounded-xl text-yellow-100">
+                                    <div class="text-4xl mb-2">${this.result.emoji}</div>
+                                    <h2 class="text-xl font-semibold mb-1 ${this.result.color}">${this.result.name}</h2>
+                                    <p class="text-sm">${this.result.meaning}</p>
+                                    <div class="flex gap-2 mt-3">
+                                        <button onclick="app.shareResult(app.result)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+                                            📤 Share
+                                        </button>
+                                        <button onclick="app.showLuckyNumbers = true; app.render()" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">
+                                            🍀 Lucky Numbers
+                                        </button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${this.showThemes ? `
+                                <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                                    <div class="bg-black/80 p-6 rounded-xl max-w-sm w-full mx-4">
+                                        <h3 class="text-yellow-200 text-lg font-semibold mb-4">Choose Theme</h3>
+                                        <div class="grid grid-cols-2 gap-2 mb-4">
+                                            <button onclick="app.theme = 'classic'; localStorage.setItem('jiaobei-theme', 'classic'); app.showThemes = false; app.render()" class="p-3 rounded-lg bg-gradient-to-br from-red-900 to-yellow-700 text-white text-sm">Classic</button>
+                                            <button onclick="app.theme = 'dark'; localStorage.setItem('jiaobei-theme', 'dark'); app.showThemes = false; app.render()" class="p-3 rounded-lg bg-gradient-to-br from-gray-900 to-black text-white text-sm">Dark</button>
+                                            <button onclick="app.theme = 'light'; localStorage.setItem('jiaobei-theme', 'light'); app.showThemes = false; app.render()" class="p-3 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 text-black text-sm">Light</button>
+                                            <button onclick="app.theme = 'temple'; localStorage.setItem('jiaobei-theme', 'temple'); app.showThemes = false; app.render()" class="p-3 rounded-lg bg-gradient-to-br from-amber-900 to-orange-800 text-white text-sm">Temple</button>
+                                            <button onclick="app.theme = 'mystical'; localStorage.setItem('jiaobei-theme', 'mystical'); app.showThemes = false; app.render()" class="p-3 rounded-lg bg-gradient-to-br from-purple-900 to-indigo-900 text-white text-sm">Mystical</button>
+                                            <button onclick="app.theme = 'nature'; localStorage.setItem('jiaobei-theme', 'nature'); app.showThemes = false; app.render()" class="p-3 rounded-lg bg-gradient-to-br from-green-800 to-emerald-700 text-white text-sm">Nature</button>
+                                        </div>
+                                        <button onclick="app.showThemes = false; app.render()" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">Close</button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${this.showLuckyNumbers ? `
+                                <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                                    <div class="bg-black/80 p-6 rounded-xl max-w-sm w-full mx-4">
+                                        <h3 class="text-yellow-200 text-lg font-semibold mb-4">🍀 Lucky Numbers</h3>
+                                        
+                                        <!-- 4-Digit Lucky Number -->
+                                        <div class="mb-6">
+                                            <h4 class="text-yellow-300 text-sm font-medium mb-2 text-center">Special 4-Digit Number</h4>
+                                            <div class="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold text-3xl p-4 rounded-lg text-center shadow-lg">
+                                                ${this.lucky4Digit}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 6 Lottery Numbers -->
+                                        <div class="mb-4">
+                                            <h4 class="text-yellow-300 text-sm font-medium mb-2 text-center">Lottery Numbers (1-49)</h4>
+                                            <div class="grid grid-cols-3 gap-3">
+                                                ${this.luckyNumbers.map(num => `
+                                                    <div class="bg-gradient-to-br from-yellow-400 to-yellow-600 text-black font-bold text-xl p-3 rounded-lg text-center">
+                                                        ${num}
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex gap-2 mb-4">
+                                            <button onclick="app.generateNewLuckyNumbers(); app.render()" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
+                                                🎲 New Numbers
+                                            </button>
+                                        </div>
+                                        <button onclick="app.showLuckyNumbers = false; app.render()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded">Close</button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${this.showStats ? `
+                                <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                                    <div class="bg-black/80 p-6 rounded-xl max-w-sm w-full mx-4">
+                                        <h3 class="text-yellow-200 text-lg font-semibold mb-4">📊 Statistics</h3>
+                                        <div class="space-y-3 mb-4">
+                                            <div class="flex justify-between">
+                                                <span class="text-yellow-100">Total Tosses:</span>
+                                                <span class="text-yellow-200 font-semibold">${this.stats.totalTosses}</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-yellow-100">Today:</span>
+                                                <span class="text-yellow-200 font-semibold">${this.stats.todayStats.totalTosses}</span>
+                                            </div>
+                                            <div class="border-t border-yellow-500/30 pt-3">
+                                                <div class="text-sm text-yellow-100 mb-2">Results Distribution:</div>
+                                                <div class="space-y-1">
+                                                    <div class="flex justify-between text-sm">
+                                                        <span>聖筊 (Yes):</span>
+                                                        <span>${this.stats.results['聖筊'] || 0}</span>
+                                                    </div>
+                                                    <div class="flex justify-between text-sm">
+                                                        <span>笑筊 (Laugh):</span>
+                                                        <span>${this.stats.results['笑筊'] || 0}</span>
+                                                    </div>
+                                                    <div class="flex justify-between text-sm">
+                                                        <span>陰筊 (No):</span>
+                                                        <span>${this.stats.results['陰筊'] || 0}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button onclick="app.showStats = false; app.render()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded">Close</button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+      }
+      renderStatsModal() {
+        return `
+                    <div class="fixed inset-0 bg-black/50 glass z-50 flex items-center justify-center p-4" onclick="if(event.target === this) { app.showStats = false; app.render(); }">
+                        <div class="w-full max-w-md bg-black/80 border border-yellow-500/50 rounded-2xl p-6" onclick="event.stopPropagation()">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-bold text-yellow-200">📊 Your Statistics</h2>
+                                <button onclick="app.showStats = false; app.render()" class="text-yellow-300 hover:bg-yellow-500/20 px-2 py-1 rounded">✕</button>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <h3 class="text-lg font-semibold text-yellow-300 mb-2">Today</h3>
+                                <div class="bg-black/40 rounded-lg p-3">
+                                    <p class="text-yellow-100 mb-2">Total Tosses: <span class="font-bold text-yellow-200">${this.stats.todayStats.totalTosses}</span></p>
+                                    ${Object.entries(this.stats.todayStats.results).map(([result, count]) => `
+                                        <div class="flex justify-between items-center text-sm text-yellow-100">
+                                            <span class="flex items-center gap-2">
+                                                <span>${this.getResultEmoji(result)}</span>
+                                                <span>${result.split(' ')[0]}</span>
+                                            </span>
+                                            <span class="font-semibold">${count}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <h3 class="text-lg font-semibold text-yellow-300 mb-2">All Time</h3>
+                                <div class="bg-black/40 rounded-lg p-3">
+                                    <p class="text-yellow-100 text-center">
+                                        <span class="text-2xl font-bold text-yellow-200 block">${this.stats.totalTosses}</span>
+                                        <span class="text-sm">Total Divinations</span>
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                <button onclick="app.clearStats()" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm">🗑️ Clear Stats</button>
+                                <button onclick="app.showStats = false; app.render()" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded text-sm">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+      }
+      handleInstallClick() {
+        if (this.deferredPrompt) {
+          this.deferredPrompt.prompt();
+          this.deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              this.showInstallPrompt = false;
+              this.render();
+            }
+            this.deferredPrompt = null;
+          });
+        }
+      }
+    }
+    const app = new JiaobeiApp();
+  </script>
+</body>
+
+</html>
+<!-- partial -->
+  
+</body>
+</html>
